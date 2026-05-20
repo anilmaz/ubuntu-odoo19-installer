@@ -1,8 +1,7 @@
-
 #!/usr/bin/env bash
 # ==============================================================================
 # Script Name: install_odoo19.sh
-# Description: Idempotent & Interactive Odoo 19 with PG 17 Installer for Ubuntu 24.04 LTS
+# Description: Idempotent & Interactive Odoo 19 Installer for Ubuntu 24.04 LTS
 # ==============================================================================
 # Author:      Anil Mahadev
 # Email:       anilmaz2024@gmail.com
@@ -34,7 +33,9 @@ show_progress() {
     local col=50
     echo -ne "${CYAN}${BOLD}[PROCESSING] ${label}...${NC}\n"
     
-    for ((i=1; i<=col; i++)); do
+    # POSIX/Dash Compliant Loop Architecture
+    local i=1
+    while [ "$i" -le "$col" ]; do
         local pct=$((i * 100 / col))
         case $((i % 5)) in
             0) echo -ne "${RED}█${NC}" ;;
@@ -45,6 +46,7 @@ show_progress() {
         esac
         echo -ne " ${pct}%\r"
         sleep "$(echo "scale=3; ${duration} / ${col}" | bc 2>/dev/null || echo "0.02")"
+        i=$((i + 1))
     done
     echo -e "\n${GREEN}[COMPLETED]${NC}\n"
 }
@@ -110,16 +112,14 @@ ODOO_LOG_FILE="${ODOO_LOG_DIR}/${POSTGRES_USER}.log"
 
 # --- SYSTEM DEPLOYMENT MATRIX ---
 echo -e "\n${CYAN}${BOLD}Step 1: Synchronizing Core Apt Distribution Repositories & Postgres 17 GPG Keys${NC}"
-# Pre-install prerequisites for key management
 apt-get update -y >/dev/null 2>&1
 apt-get install -y gnupg curl ca-certificates lsb-release bc >/dev/null 2>&1
 
-# Securely fetch official PostgreSQL signing keys & append verified repo (FIXED FILENAME)
+# Securely fetch official PostgreSQL signing keys & append verified repo
 install -d /etc/apt/keyrings
 curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor --yes -o /etc/apt/keyrings/postgresql.gpg
 echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
-# Refresh apt list cache with the brand new PostgreSQL channel
 apt-get update -y >/dev/null 2>&1
 show_progress 1.5 "Updating package manifests & caching pgdg ecosystem"
 
@@ -136,14 +136,12 @@ npm install -g less less-plugin-clean-css >/dev/null 2>&1
 show_progress 1.0 "Injecting node asset engines"
 
 echo -e "\n${CYAN}${BOLD}Step 4: Provisioning High-Privilege Relational Database Roles${NC}"
-# Explicitly use the version-specific service to avoid mapping hiccups
 systemctl daemon-reload
 systemctl start postgresql@17-main 2>/dev/null || systemctl start postgresql
 systemctl enable postgresql
 
 PG_USER_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${POSTGRES_USER}';")
 
-# Force absolute LOGIN, SUPERUSER, and CREATEDB rights on the assigned user account context cleanly
 if [ "$PG_USER_EXISTS" = "1" ]; then
     sudo -u postgres psql -c "ALTER ROLE ${POSTGRES_USER} WITH LOGIN SUPERUSER CREATEDB PASSWORD '${DB_PASSWORD}';" >/dev/null 2>&1
 else
@@ -248,5 +246,3 @@ echo -e "----------------------------------------------------------------------"
 echo -e "${BOLD}PostgreSQL Instance User:${NC}    ${YELLOW}${POSTGRES_USER}${NC} (Status: SUPERUSER)"
 echo -e "${BOLD}Active Implementation Logs:${NC}     ${YELLOW}tail -f ${ODOO_LOG_FILE}${NC}"
 echo -e "${GREEN}======================================================================${NC}\n"
-
-```
