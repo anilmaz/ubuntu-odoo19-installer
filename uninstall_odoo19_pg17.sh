@@ -68,7 +68,11 @@ read -p "Enter the precise PostgreSQL database/user name to back up and drop [De
 TARGET_DB=${TARGET_DB:-odoo19}
 
 apt-get install -y zip bc >/dev/null 2>&1
-if ! systemctl is-active --quiet postgresql; then systemctl start postgresql; fi
+
+# Explicit check to bring up PostgreSQL 17 cluster instances if down
+if ! systemctl is-active --quiet postgresql; then
+    systemctl start postgresql@17-main 2>/dev/null || systemctl start postgresql
+fi
 
 PG_DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${TARGET_DB}';")
 
@@ -164,6 +168,7 @@ if [ "$RUN_PURGE" = true ]; then
     show_progress 0.7 "Stopping active application daemon threads"
 
     if systemctl is-active --quiet postgresql; then
+        # Force terminate active connections blocking the drop command in Postgres 17
         sudo -u postgres psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${TARGET_DB}' AND pid <> pg_backend_pid();" &>/dev/null
         sudo -u postgres psql -c "DROP DATABASE IF EXISTS ${TARGET_DB};" 2>/dev/null
         sudo -u postgres psql -c "DROP ROLE IF EXISTS ${TARGET_DB};" 2>/dev/null
@@ -173,10 +178,10 @@ if [ "$RUN_PURGE" = true ]; then
     # Deep system clean: Terminate and erase PostgreSQL 17 server binaries and apt repository lists cleanly
     read -p "Do you want to completely purge PostgreSQL 17 engine binaries from this host? (y/n): " PURGE_PG_BIN
     if [[ "$PURGE_PG_BIN" =~ ^[Yy]$ ]]; then
-        systemctl stop postgresql 2>/dev/null
+        systemctl stop postgresql@17-main 2>/dev/null || systemctl stop postgresql
         apt-get purge -y postgresql-17 postgresql-client-17 postgresql-common >/dev/null 2>&1
         apt-get autoremove -y >/dev/null 2>&1
-        rm -f /etc/apt/sources.list.pydg.list
+        rm -f /etc/apt/sources.list.d/pgdg.list
         rm -f /etc/apt/keyrings/postgresql.gpg
         show_progress 2.0 "Purging PostgreSQL 17 engine assemblies & PGDG source paths"
     fi
