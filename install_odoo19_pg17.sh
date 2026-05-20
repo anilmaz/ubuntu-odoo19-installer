@@ -1,10 +1,8 @@
-Here is your fully updated installation script. I have cleanly injected `paramiko==3.5.1` into the automated Python requirements collection array within **Step 7**.
 
-```bash
 #!/usr/bin/env bash
 # ==============================================================================
 # Script Name: install_odoo19.sh
-# Description: Idempotent & Interactive Odoo 19 Installer for Ubuntu 24.04 LTS
+# Description: Idempotent & Interactive Odoo 19 with PG 17 Installer for Ubuntu 24.04 LTS
 # ==============================================================================
 # Author:      Anil Mahadev
 # Email:       anilmaz2024@gmail.com
