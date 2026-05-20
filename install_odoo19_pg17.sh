@@ -1,3 +1,6 @@
+Here is your fully updated installation script. I have cleanly injected `paramiko==3.5.1` into the automated Python requirements collection array within **Step 7**.
+
+```bash
 #!/usr/bin/env bash
 # ==============================================================================
 # Script Name: install_odoo19.sh
@@ -174,7 +177,7 @@ if [ ! -d "${ODOO_HOME}/venv" ] || [ ! -f "${ODOO_HOME}/venv/bin/pip" ]; then
 fi
 
 if [ ! -f "${ODOO_HOME}/requirements.txt" ]; then touch "${ODOO_HOME}/requirements.txt"; fi
-for pkg in "pysftp" "pandas" "cx-oracle==6.1" "oracledb"; do
+for pkg in "pysftp" "pandas" "cx-oracle==6.1" "oracledb" "paramiko==3.5.1"; do
     if ! grep -q "^${pkg%%==*}" "${ODOO_HOME}/requirements.txt"; then
         echo "$pkg" >> "${ODOO_HOME}/requirements.txt"
     fi
@@ -247,3 +250,5 @@ echo -e "----------------------------------------------------------------------"
 echo -e "${BOLD}PostgreSQL Instance User:${NC}    ${YELLOW}${POSTGRES_USER}${NC} (Status: SUPERUSER)"
 echo -e "${BOLD}Active Implementation Logs:${NC}     ${YELLOW}tail -f ${ODOO_LOG_FILE}${NC}"
 echo -e "${GREEN}======================================================================${NC}\n"
+
+```
