@@ -111,12 +111,12 @@ ODOO_LOG_FILE="${ODOO_LOG_DIR}/${POSTGRES_USER}.log"
 echo -e "\n${CYAN}${BOLD}Step 1: Synchronizing Core Apt Distribution Repositories & Postgres 17 GPG Keys${NC}"
 # Pre-install prerequisites for key management
 apt-get update -y >/dev/null 2>&1
-apt-get install -y gnupg curl ca-certificates >/dev/null 2>&1
+apt-get install -y gnupg curl ca-certificates lsb-release bc >/dev/null 2>&1
 
-# Securely fetch official PostgreSQL signing keys & append verified repo
+# Securely fetch official PostgreSQL signing keys & append verified repo (FIXED FILENAME)
 install -d /etc/apt/keyrings
-curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/keyrings/postgresql.gpg
-echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.pydg.list
+curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor --yes -o /etc/apt/keyrings/postgresql.gpg
+echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
 # Refresh apt list cache with the brand new PostgreSQL channel
 apt-get update -y >/dev/null 2>&1
@@ -126,7 +126,7 @@ echo -e "\n${CYAN}${BOLD}Step 2: Installing Libraries and Data Runtimes (Postgre
 apt-get install -y python3-pip python3-dev python3-venv python3.12-venv libxml2-dev libxslt1-dev \
     zlib1g-dev libsasl2-dev libldap2-dev build-essential libssl-dev libffi-dev \
     libjpeg-dev libpq-dev liblcms2-dev libblas-dev libatlas-base-dev \
-    git nodejs npm xfonts-75dpi curl libaio1t64 wkhtmltopdf postgresql-17 postgresql-client-17 bc >/dev/null 2>&1
+    git nodejs npm xfonts-75dpi curl libaio1t64 wkhtmltopdf postgresql-17 postgresql-client-17 >/dev/null 2>&1
 show_progress 3.0 "Compiling layout toolchains"
 
 echo -e "\n${CYAN}${BOLD}Step 3: Setting Up Frontend Less/CSS Processing Engines${NC}"
@@ -135,10 +135,14 @@ npm install -g less less-plugin-clean-css >/dev/null 2>&1
 show_progress 1.0 "Injecting node asset engines"
 
 echo -e "\n${CYAN}${BOLD}Step 4: Provisioning High-Privilege Relational Database Roles${NC}"
-systemctl start postgresql && systemctl enable postgresql >/dev/null 2>&1
+# Explicitly use the version-specific service to avoid mapping hiccups
+systemctl daemon-reload
+systemctl start postgresql@17-main 2>/dev/null || systemctl start postgresql
+systemctl enable postgresql
+
 PG_USER_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${POSTGRES_USER}';")
 
-# FIX: Force absolute LOGIN, SUPERUSER, and CREATEDB rights on the assigned user account context cleanly
+# Force absolute LOGIN, SUPERUSER, and CREATEDB rights on the assigned user account context cleanly
 if [ "$PG_USER_EXISTS" = "1" ]; then
     sudo -u postgres psql -c "ALTER ROLE ${POSTGRES_USER} WITH LOGIN SUPERUSER CREATEDB PASSWORD '${DB_PASSWORD}';" >/dev/null 2>&1
 else
