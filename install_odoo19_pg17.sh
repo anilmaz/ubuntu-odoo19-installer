@@ -32,7 +32,7 @@ show_progress() {
     local label=$2
     local col=50
     echo -ne "${CYAN}${BOLD}[PROCESSING] ${label}...${NC}\n"
-    
+
     # POSIX/Dash Compliant Loop Architecture
     local i=1
     while [ "$i" -le "$col" ]; do
@@ -159,12 +159,29 @@ chown -R "${ODOO_USER}":root "${ODOO_LOG_DIR}"
 show_progress 0.8 "Isolating execution environment"
 
 echo -e "\n${CYAN}${BOLD}Step 6: Pulling Version-Locked Odoo 19 Source Code Tree${NC}"
+GIT_ERR_LOG="/tmp/odoo_git_err.log"
+
 if [ -d "${ODOO_HOME}/.git" ]; then
-    sudo -u "${ODOO_USER}" git -C "${ODOO_HOME}" fetch --all >/dev/null 2>&1
+    # Disable terminal prompts so git fails instead of hanging indefinitely on network/auth prompts
+    sudo -u "${ODOO_USER}" env GIT_TERMINAL_PROMPT=0 git -C "${ODOO_HOME}" fetch --all >/dev/null 2>"$GIT_ERR_LOG"
 else
-    sudo -u "${ODOO_USER}" git clone https://www.github.com/odoo/odoo --depth 1 --branch 19.0 --single-branch "${ODOO_HOME}" >/dev/null 2>&1
+    # Corrected target URL schema to avoid unexpected dynamic redirect issues
+    sudo -u "${ODOO_USER}" env GIT_TERMINAL_PROMPT=0 git clone https://github.com/odoo/odoo --depth 1 --branch 19.0 --single-branch "${ODOO_HOME}" >/dev/null 2>"$GIT_ERR_LOG"
 fi
-show_progress 3.5 "Downloading application core frames"
+
+GIT_STATUS=$?
+
+if [ $GIT_STATUS -ne 0 ]; then
+    log_error "Git engine processing encountered a fatal exception. Error logs parsed below:"
+    echo -e "${YELLOW}"
+    cat "$GIT_ERR_LOG"
+    echo -e "${NC}"
+    rm -f "$GIT_ERR_LOG"
+    exit 1
+fi
+
+rm -f "$GIT_ERR_LOG"
+show_progress 2.5 "Downloading application core frames"
 
 echo -e "\n${CYAN}${BOLD}Step 7: Compiling Virtual Environment & Injecting Multi-Cloud Drivers${NC}"
 if [ ! -d "${ODOO_HOME}/venv" ] || [ ! -f "${ODOO_HOME}/venv/bin/pip" ]; then
@@ -230,10 +247,10 @@ DURATION_MIN=$((ELAPSED_SECONDS / 60))
 DURATION_SEC=$((ELAPSED_SECONDS % 60))
 
 echo -e "\n${GREEN}${BOLD}======================================================================"
-echo -e "       DEPLOYMENT CONFIGURATION SEQUENCE EXECUTED SUCCESSFULLY        "
+echo -e "        DEPLOYMENT CONFIGURATION SEQUENCE EXECUTED SUCCESSFULLY        "
 echo -e "======================================================================${NC}"
-echo -e "${BOLD}Author:${NC}                  Anil Mahadev (${CYAN}https://anilmahadev.odoo.com${NC})"
-echo -e "${BOLD}Lifecycle Window:${NC}        Started: ${YELLOW}${START_DATE_STR}${NC} -> Ended: ${YELLOW}${END_DATE_STR}${NC}"
+echo -e "${BOLD}Author:${NC}                   Anil Mahadev (${CYAN}https://anilmahadev.odoo.com${NC})"
+echo -e "${BOLD}Lifecycle Window:${NC}         Started: ${YELLOW}${START_DATE_STR}${NC} -> Ended: ${YELLOW}${END_DATE_STR}${NC}"
 echo -e "${BOLD}Total Execution Time:${NC}    ${PURPLE}${BOLD}${DURATION_MIN}m ${DURATION_SEC}s${NC} (${ELAPSED_SECONDS} total seconds)"
 echo -e "----------------------------------------------------------------------"
 echo -e "${BOLD}Target System Hostname:${NC}      ${CYAN}${SYS_HOSTNAME}${NC}"
